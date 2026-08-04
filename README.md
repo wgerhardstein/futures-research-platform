@@ -86,8 +86,6 @@ grants extra runway. This generalises well past trading.
 
 ### 3. I killed my own best-scoring result
 
-This is the one I would lead with in an interview.
-
 I ran a search to re-select which strategies belonged in the live book. I set
 the success criteria **in advance**, and included two safeguards: a control, and
 a test against randomly chosen books. The search produced a result that scored
