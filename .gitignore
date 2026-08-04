@@ -1,0 +1,21 @@
+# credentials -- never commit
+.env
+.env.*
+!.env.example
+*.key
+credentials*
+
+# generated data (regenerate with `python -m synthetic.bars && python -m synthetic.generate`)
+data/
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.hypothesis/
+*.egg-info/
+
+# os
+.DS_Store

@@ -1,0 +1,9 @@
+numpy>=1.26
+pandas>=2.0
+pyarrow>=14.0
+arch>=6.3                 # stationary block bootstrap, Politis-White block length
+pandas-ta>=0.4.71b0       # independent indicator reference for the audit
+backtesting>=0.6.6        # independent fill resolver for the audit
+hypothesis>=6.100         # property-based testing
+pytest>=8.0
+python-dotenv>=1.0       # optional; env_loader degrades gracefully without it
