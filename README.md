@@ -55,7 +55,6 @@ number could not be re-derived, it is not here.
 
 ## Four decisions, and why
 
-The judgment calls are the part I would want to be asked about.
 
 ### 1. I replaced a random sampler with an exhaustive count
 
