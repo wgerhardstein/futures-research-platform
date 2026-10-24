@@ -151,12 +151,12 @@ footer { grid-column: 1 / -1; font-size: 12px; color: var(--muted); display: fle
   </section>
 
   <section class="full">
-    <div class="ph"><h2>Tape</h2><span class="meta">Every event from the paper trader, newest last</span></div>
+    <div class="ph"><h2>Tape</h2><span class="meta">Every event from the signal engine, newest last</span></div>
     <ul class="tape" id="tape"></ul>
   </section>
 
   <section class="full">
-    <div class="ph"><h2>Paper record</h2><span class="meta">1 contract per signal · mid-to-mid, and ask-in / bid-out</span></div>
+    <div class="ph"><h2>Trade record</h2><span class="meta">1 contract per signal · mid-to-mid, and ask-in / bid-out</span></div>
     <dl class="stats" id="stats"></dl>
     <div class="tw"><table>
       <thead><tr><th class="l">Date</th><th class="l">Symbol</th><th class="l">Contract</th><th class="l">Role</th><th>In</th><th>Out</th><th>Return</th><th>At bid/ask</th><th>P&amp;L 1 lot</th></tr></thead>
@@ -176,7 +176,7 @@ footer { grid-column: 1 / -1; font-size: 12px; color: var(--muted); display: fle
           <tr><td>Untouched holdout, 2024-02 → 2024-09</td><td class="num">144</td><td class="num">+2.3%</td><td class="num">−6.5 … +12.0</td></tr>
         </table></div>
         <p class="note">About one trade in four wins; winners average about +$70 a contract, losers about −$14. The holdout result is positive but not
-          statistically clear, which is why it is paper-traded first. VIX above 20 and options over $2.00 are skipped.</p>
+          statistically clear, VIX above 20 and options over $2.00 are skipped.</p>
       </div>
       <div>
         <h3>SPY RSI(2) dip-buy</h3>
@@ -193,7 +193,7 @@ footer { grid-column: 1 / -1; font-size: 12px; color: var(--muted); display: fle
   </section>
 
   <footer>
-    <span>Paper signals only. Nothing here places orders. Not financial advice; options can expire worthless.</span>
+    <span>Nothing here places orders. Not financial advice; options can expire worthless.</span>
     <span>Running on this computer · quotes: Alpaca (indicative feed) · refreshes every minute</span>
   </footer>
 </main>
@@ -243,7 +243,7 @@ function renderTicket(o) {
       : o.watch.length
         ? `<div class="tk-head">Armed · waiting for a break</div><div class="tk-contract">${waiting.map((w) => `${esc(w.sym)} ${w.side === "LONG" ? "↑" : "↓"} ${f2(w.trigger)}`).join("&nbsp;&nbsp; ") || "--"}</div>
            <div class="tk-sub">The first name to trade through its level becomes the ticket. Calls on an upside break, puts on a downside break.</div>`
-        : `<div class="tk-head">Pre-market</div><div class="tk-contract">Ranking at 9:35 ET</div><div class="tk-sub">The paper trader starts at 9:25 and ranks the 250-stock universe by opening volume at 9:35.</div>`;
+        : `<div class="tk-head">Pre-market</div><div class="tk-contract">Ranking at 9:35 ET</div><div class="tk-sub">The signal engine starts at 9:25 and ranks the 250-stock universe by opening volume at 9:35.</div>`;
     return;
   }
   const closed = prim.state === "closed";
@@ -357,7 +357,7 @@ function renderRecord(t) {
   $("hist").innerHTML = t.length ? t.slice().reverse().map((r) => `<tr class="${r.primary ? "prim" : ""}"><td class="l">${esc(r.date)}</td><td class="l sym">${esc(r.sym)}</td>
     <td class="l">${esc(r.contract)}</td><td class="l">${r.primary ? "Ticket" : r.filled ? "Logged" : "Logged · no mid fill"}</td><td>${f2(r.mid_in)}</td><td>${f2(r.mid_out)}</td>
     <td class="${cls(r.ret)}">${pct(r.ret)}</td><td class="${cls(r.ret_cons)}">${pct(r.ret_cons)}</td><td class="${cls(r.usd)}">${usd(r.usd)}</td></tr>`).join("")
-    : `<tr><td colspan="9" class="l mut">The paper record starts with the first session.</td></tr>`;
+    : `<tr><td colspan="9" class="l mut">The trade record starts with the first session.</td></tr>`;
 }
 
 async function load() {
