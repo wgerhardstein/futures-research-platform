@@ -99,6 +99,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
         if self.path.startswith("/data.json"):
             body, ctype = build(), "application/json"
+        elif self.path.startswith("/backtest.json"):
+            body, ctype = (PAGE.parent / "backtest.json").read_bytes(), "application/json"
         elif self.path in ("/", "/index.html"):
             body, ctype = PAGE.read_bytes(), "text/html; charset=utf-8"
         else:

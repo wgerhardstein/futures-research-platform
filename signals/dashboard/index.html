@@ -156,12 +156,22 @@ footer { grid-column: 1 / -1; font-size: 12px; color: var(--muted); display: fle
   </section>
 
   <section class="full">
-    <div class="ph"><h2>Trade record</h2><span class="meta">1 contract per signal · mid-to-mid, and ask-in / bid-out</span></div>
-    <dl class="stats" id="stats"></dl>
+    <div class="ph"><h2>Last trade</h2><span class="meta">Most recent ticket · 1 contract · mid-to-mid, and ask-in / bid-out</span></div>
     <div class="tw"><table>
-      <thead><tr><th class="l">Date</th><th class="l">Symbol</th><th class="l">Contract</th><th class="l">Role</th><th>In</th><th>Out</th><th>Return</th><th>At bid/ask</th><th>P&amp;L 1 lot</th></tr></thead>
+      <thead><tr><th class="l">Date</th><th class="l">Symbol</th><th class="l">Contract</th><th>In</th><th>Out</th><th>Return</th><th>At bid/ask</th><th>P&amp;L 1 lot</th></tr></thead>
       <tbody id="hist"></tbody>
     </table></div>
+  </section>
+
+  <section class="full" id="bt">
+    <div class="ph"><h2>Backtest · same rules, real option prices</h2><span class="meta" id="bt-meta">--</span></div>
+    <dl class="stats" id="bt-stats"></dl>
+    <div class="pb" id="bt-chart"></div>
+    <div class="tw"><table>
+      <thead><tr><th class="l">Date</th><th class="l">Symbol</th><th class="l">Contract</th><th>Entry</th><th>In</th><th>Out</th><th class="l">Exit</th><th>Return</th><th>P&amp;L 1 lot</th></tr></thead>
+      <tbody id="bt-rows"></tbody>
+    </table></div>
+    <div class="skips">Simulated from historical option prices (Alpaca 1-minute bars) with an estimated 2.5% cost per side. Not live fills. The rules were built on this period; an untouched 2024 holdout averaged +2.3% per trade.</div>
   </section>
 
   <section class="full">
@@ -175,7 +185,7 @@ footer { grid-column: 1 / -1; font-size: 12px; color: var(--muted); display: fle
           <tr><td>Build sample, 2024-09 → 2026-10</td><td class="num">393</td><td class="num up">+8.3%</td><td class="num">+0.9 … +17.1</td></tr>
           <tr><td>Untouched holdout, 2024-02 → 2024-09</td><td class="num">144</td><td class="num">+2.3%</td><td class="num">−6.5 … +12.0</td></tr>
         </table></div>
-        <p class="note">About one trade in four wins; winners average about +$70 a contract, losers about −$14. The holdout result is positive but not
+        <p class="note">About one trade in four wins; winners average about +$112 a contract, losers about −$20. The holdout result is positive but not
           statistically clear, VIX above 20 and options over $2.00 are skipped.</p>
       </div>
       <div>
@@ -350,14 +360,30 @@ function chart(h, trig) {
 }
 
 function renderRecord(t) {
-  const p = t.filter((r) => r.primary);
-  const tot = p.reduce((a, r) => a + r.usd, 0), wins = p.filter((r) => r.ret > 0).length, fills = p.filter((r) => r.filled).length;
-  $("stats").innerHTML = `<div><dt>Ticket trades</dt><dd>${p.length}</dd></div><div><dt>Winners</dt><dd>${p.length ? Math.round(100 * wins / p.length) + "%" : "--"}</dd></div>
-    <div><dt>Mid fills</dt><dd>${p.length ? fills + "/" + p.length : "--"}</dd></div><div><dt>P&amp;L, 1 lot each</dt><dd class="${cls(tot)}">${usd(tot)}</dd></div>`;
-  $("hist").innerHTML = t.length ? t.slice().reverse().map((r) => `<tr class="${r.primary ? "prim" : ""}"><td class="l">${esc(r.date)}</td><td class="l sym">${esc(r.sym)}</td>
-    <td class="l">${esc(r.contract)}</td><td class="l">${r.primary ? "Ticket" : r.filled ? "Logged" : "Logged · no mid fill"}</td><td>${f2(r.mid_in)}</td><td>${f2(r.mid_out)}</td>
-    <td class="${cls(r.ret)}">${pct(r.ret)}</td><td class="${cls(r.ret_cons)}">${pct(r.ret_cons)}</td><td class="${cls(r.usd)}">${usd(r.usd)}</td></tr>`).join("")
-    : `<tr><td colspan="9" class="l mut">The trade record starts with the first session.</td></tr>`;
+  const last = t.filter((r) => r.primary).slice(-1);
+  $("hist").innerHTML = last.length ? last.map((r) => `<tr class="prim"><td class="l">${esc(r.date)}</td><td class="l sym">${esc(r.sym)}</td>
+    <td class="l">${esc(r.contract)}</td><td>${f2(r.mid_in)}</td><td>${f2(r.mid_out)}</td><td class="${cls(r.ret)}">${pct(r.ret)}</td>
+    <td class="${cls(r.ret_cons)}">${pct(r.ret_cons)}</td><td class="${cls(r.usd)}">${usd(r.usd)}</td></tr>`).join("")
+    : `<tr><td colspan="8" class="l mut">No ticket yet.</td></tr>`;
+}
+
+function renderBacktest(b) {
+  if (!b) { $("bt").hidden = true; return; }
+  $("bt-meta").textContent = `${b.span} · 1 contract per ticket`;
+  $("bt-stats").innerHTML = `<div><dt>Winners</dt><dd>${b.win}%</dd></div><div><dt>Avg winner / loser</dt><dd><span class="up">${usd(b.avg_win)}</span> / <span class="dn">${usd(b.avg_loss)}</span></dd></div>
+    <div><dt>Months up</dt><dd>${b.months_up} of ${b.months}</dd></div><div><dt>Total, 1 lot each</dt><dd class="${cls(b.total_usd)}">${usd(b.total_usd)}</dd></div>`;
+  const m = b.monthly, W = 1180, H = 150, T = 10, B = 22, L = 4, R = 50;
+  const mx = Math.max(...m.map((x) => Math.abs(x.usd))), y0 = T + (H - T - B) * (mx / (2 * mx));
+  const bw = (W - L - R) / m.length;
+  const y = (v) => T + (H - T - B) * (1 - (v + mx) / (2 * mx));
+  const bars = m.map((x, i) => `<rect x="${(L + i * bw + 2).toFixed(1)}" width="${(bw - 4).toFixed(1)}" y="${Math.min(y(x.usd), y(0)).toFixed(1)}" height="${Math.max(1, Math.abs(y(x.usd) - y(0))).toFixed(1)}" fill="${x.usd >= 0 ? "var(--up)" : "var(--dn)"}"><title>${x.m}: ${usd(x.usd)}</title></rect>`).join("");
+  const labs = m.map((x, i) => (i % 3 === 0 ? `<text x="${(L + i * bw + bw / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle">${x.m.slice(2).replace("-", "/")}</text>` : "")).join("");
+  const grid = [mx, 0, -mx].map((v) => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--rule2)"/><text x="${W - R + 6}" y="${y(v) + 3.5}">${usd(Math.round(v))}</text>`).join("");
+  $("bt-chart").innerHTML = `<div class="lab mut" style="font:11px var(--f-num);margin-bottom:6px">P&amp;L by month, 1 contract per ticket</div>
+    <svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Backtest P&L by month">${grid}${bars}${labs}</svg>`;
+  $("bt-rows").innerHTML = b.recent.slice().reverse().map((r) => `<tr><td class="l">${esc(r.date)}</td><td class="l sym">${esc(r.sym)}</td><td class="l">${esc(r.contract)}</td>
+    <td>${esc(r.entry_t)}</td><td>${f2(r.px_in)}</td><td>${f2(r.px_out)}</td><td class="l">${r.exit === "stop" ? "Stop" : "15:55"}</td>
+    <td class="${cls(r.ret)}">${pct(r.ret)}</td><td class="${cls(r.usd)}">${usd(r.usd)}</td></tr>`).join("");
 }
 
 async function load() {
@@ -367,6 +393,7 @@ async function load() {
     if (d.updated !== lastStamp) {
       $("upd").textContent = `Updated ${d.updated.slice(5)} ET`;
       renderOrb(d.orb); renderSpy(d.spy); renderRecord(d.trades);
+      if (!window._bt) { window._bt = 1; fetch("backtest.json", { cache: "no-store" }).then((r) => r.json()).then(renderBacktest, () => renderBacktest(null)); }
       if (lastStamp) document.querySelectorAll("section").forEach((s) => { s.classList.remove("flash"); void s.offsetWidth; s.classList.add("flash"); });
       lastStamp = d.updated;
     }
