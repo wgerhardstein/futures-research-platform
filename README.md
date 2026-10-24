@@ -11,39 +11,44 @@ Two parts:
 
 ---
 
-## Quick start (about 10 minutes)
+## Quick start (5 minutes)
 
-You need Python 3.10+ and a **free** [Alpaca](https://alpaca.markets) account (sign up → *Paper Trading* →
-*API Keys* → generate). No money and no brokerage account are needed; the keys only read market data.
+**Before you start:**
+- Get a **free** [Alpaca](https://alpaca.markets) account: sign up → *Paper Trading* → *API Keys* → *Generate*. No money
+  or brokerage account is needed; the keys only read market data.
+- Install [Python 3.12](https://www.python.org/downloads/). On Windows, tick **"Add python.exe to PATH"**.
+
+**Windows**
+1. Click the green **Code** button above → **Download ZIP**, and unzip it.
+2. Double-click **`install.bat`** and paste your two Alpaca keys when asked.
+3. Double-click **`start.bat`** and leave the window open.
+
+**Mac / Linux**: paste into Terminal, then paste your two Alpaca keys when asked:
 
 ```bash
-git clone https://github.com/wgerhardstein/futures-research-platform.git
-cd futures-research-platform
-python3 -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env                                     # Windows: copy .env.example .env
-# open .env and paste your ALPACA_API_KEY and ALPACA_SECRET_KEY
-python -m signals check                                  # verifies keys, live prices, option quotes
+git clone https://github.com/wgerhardstein/futures-research-platform.git && cd futures-research-platform && ./install.sh
+./start.sh
 ```
 
-### Daily use (times are US Eastern)
+That's it. While the window is open, it runs by itself every weekday (US Eastern time):
 
-| When | Command | What you get |
-|---|---|---|
-| 9:25 (leave running until 15:55) | `python -m signals orb` | At 9:35, the day's ranked stocks in play and up to 3 watch names. Then each breakout entry with the exact option contract, live bid/ask, whether a limit at mid would have filled, the stop, and the exit. |
-| 15:50 | `python -m signals spy --record` | SPY dip-buy signal: BUY / HOLD / SELL / no trade, with the ~45-day call to use. `--record` updates the paper position. |
-| Any time | `python -m signals spy` | Preview of the SPY signal (changes nothing). |
-| Any time | `python -m signals status` | Paper results so far against the backtest. |
+| Time | What happens |
+|---|---|
+| 9:25 → 15:55 | 0DTE breakout session. At 9:35 it prints the day's stocks in play, then each entry with the exact option contract, live bid/ask, whether a limit at mid would have filled, the stop, and the exit. |
+| 15:50 | SPY dip-buy check: BUY / HOLD / SELL / no trade, with the ~45-day call to use. |
 
-Logs and paper positions are written to `data/signals/`, which is gitignored.
+Everything is also saved under `data/signals/`, including `run.log` and the paper-trade CSVs. The computer has to be on
+and awake at those times.
 
-To run these automatically, schedule the two commands with `cron` (macOS/Linux) or Task Scheduler (Windows). Example
-crontab, with the machine on US Eastern time:
+**Other commands.** On Windows, run them from a terminal in the folder as `start.bat <command>`; on Mac/Linux,
+`./start.sh <command>`.
 
-```
-25 9 * * 1-5   cd /path/to/futures-research-platform && .venv/bin/python -m signals orb >> data/signals/orb.log 2>&1
-50 15 * * 1-5  cd /path/to/futures-research-platform && .venv/bin/python -m signals spy --record >> data/signals/spy.log 2>&1
-```
+| Command | Does |
+|---|---|
+| `status` | Paper results so far against the backtest |
+| `spy` | SPY signal right now (preview, changes nothing) |
+| `orb --now` | Today's breakout ranking right now (after 9:35) |
+| `check` | Re-test your keys and data access |
 
 ---
 
