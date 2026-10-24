@@ -7,3 +7,8 @@ backtesting>=0.6.6        # independent fill resolver for the audit
 hypothesis>=6.100         # property-based testing
 pytest>=8.0
 python-dotenv>=1.0       # optional; env_loader degrades gracefully without it
+
+# signal tool (signals/) and research reproductions (research/)
+requests>=2.31
+yfinance>=0.2.40
+tzdata>=2024.1            # time zones on Windows

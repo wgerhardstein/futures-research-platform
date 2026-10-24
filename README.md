@@ -1,6 +1,72 @@
 # futures-research-platform
 
-**A research program for deciding when evidence is good enough to act on.**
+**A research program for deciding when evidence is good enough to act on — and the daily options signal tool that came out of it.**
+
+Two parts:
+
+1. **`signals/` — a working daily signal tool.** Two pre-registered, out-of-sample-tested options rules, run from the
+   command line on free market data. It paper-trades and logs real option quotes. It never places orders.
+2. **The validation layer** (everything below *My role*): the futures research program that rejected 91.8% of the
+   strategies it tested, and the tooling that decided which numbers to trust.
+
+---
+
+## Quick start (about 10 minutes)
+
+You need Python 3.10+ and a **free** [Alpaca](https://alpaca.markets) account (sign up → *Paper Trading* →
+*API Keys* → generate). No money and no brokerage account are needed; the keys only read market data.
+
+```bash
+git clone https://github.com/wgerhardstein/futures-research-platform.git
+cd futures-research-platform
+python3 -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env                                     # Windows: copy .env.example .env
+# open .env and paste your ALPACA_API_KEY and ALPACA_SECRET_KEY
+python -m signals check                                  # verifies keys, live prices, option quotes
+```
+
+### Daily use (times are US Eastern)
+
+| When | Command | What you get |
+|---|---|---|
+| 9:25 (leave running until 15:55) | `python -m signals orb` | At 9:35, the day's ranked stocks in play and up to 3 watch names. Then each breakout entry with the exact option contract, live bid/ask, whether a limit at mid would have filled, the stop, and the exit. |
+| 15:50 | `python -m signals spy --record` | SPY dip-buy signal: BUY / HOLD / SELL / no trade, with the ~45-day call to use. `--record` updates the paper position. |
+| Any time | `python -m signals spy` | Preview of the SPY signal (changes nothing). |
+| Any time | `python -m signals status` | Paper results so far against the backtest. |
+
+Logs and paper positions are written to `data/signals/`, which is gitignored.
+
+To run these automatically, schedule the two commands with `cron` (macOS/Linux) or Task Scheduler (Windows). Example
+crontab, with the machine on US Eastern time:
+
+```
+25 9 * * 1-5   cd /path/to/futures-research-platform && .venv/bin/python -m signals orb >> data/signals/orb.log 2>&1
+50 15 * * 1-5  cd /path/to/futures-research-platform && .venv/bin/python -m signals spy --record >> data/signals/spy.log 2>&1
+```
+
+---
+
+## The two rules
+
+Full results, including what was tested and rejected: [`research/RESULTS.md`](research/RESULTS.md).
+
+| | 0DTE opening-range breakout | SPY RSI(2) dip-buy |
+|---|---|---|
+| Source | Zarattini, Barbon & Aziz (2024) | Connors & Alvarez (2008) |
+| Entry | Top relative-volume stock in the first 5 min; buy the same-day at-the-money option when price breaks the first 5-min candle | SPY above its 200-day average and 2-day RSI below 10, buy at the close |
+| Exit | 1-min close beyond 10% of ATR14, else 15:55 | First close above the 5-day average |
+| Filters | Skip if VIX > 20; option ask ≤ $2.00 | — |
+| Frequency | Most trading days | About 8 trades a year |
+| Evidence | +8.3% per trade where built (2024-26, real option prices); **+2.3% on an untouched holdout, confidence interval includes zero** | 263 trades since 1994, 76% winners, +0.63% per trade, beats 2,000 random-entry controls; ~45-day call version +8.9% per trade on real 2024-26 prices |
+| Status | **Paper trading** since 2026-10-23 to verify fills | Paper trading |
+
+**Not financial advice.** Both rules can lose money. The breakout rule in particular is unproven out of sample. Options
+can go to zero, so size any real position so that a total loss is acceptable.
+
+---
+
+# The futures research program
 
 I spent 2026 building and running a multi-strategy futures trading system. The
 interesting part is not the trading. It is that the whole thing is organised
@@ -150,20 +216,19 @@ one that could not be was removed.
 
 ## What is in the repository
 
-**Here:** the scoring engine, the validation layer, the risk controls, the
-broker interface, and a data generator so the whole thing runs for anyone who
-clones it.
+**Here:** the options signal tool and the research behind it (in full), plus the futures program's scoring engine,
+validation layer, risk controls, broker interface, and a data generator so the futures validation suite runs for
+anyone who clones it.
 
-**Not here:** the trading logic itself and the real trade data. Those are the
-part with commercial value. A placeholder implements the same interface and
-deliberately never trades, so the structure is legible without giving away the
-strategies.
-
-Stated plainly: the validation layer here is demonstrated against a placeholder
-with no edge. That is what makes it publishable.
+**Not here:** the futures strategies themselves and their real trade data. A placeholder implements the same interface
+and deliberately never trades, so the structure is legible without giving those away. The validation layer is
+demonstrated against that placeholder, which has no edge.
 
 ```
-engine/       the scoring model
+signals/      daily options signal tool (orb = 0DTE breakout, spy_rsi2 = SPY dip-buy), paper logs, CLI
+research/     RESULTS.md + a free-data reproduction of the SPY rule
+tests/        unit tests for the signal rules (no network)
+engine/       the futures scoring model
 validation/   controls, invariants, three independent external audits
 execution/    broker interface, live session state, alerts, journalling
 risk/         loss limits, drawdown floors, position limits
@@ -171,17 +236,16 @@ strategy/     placeholder implementing the private interface
 synthetic/    data generator so the suite runs without private data
 ```
 
-### Running it
+### Running the checks
 
 ```bash
 pip install -r requirements.txt
-python -m synthetic.bars && python -m synthetic.generate
+python -m pytest tests/ -q                                  # signal rules (no network)
+python -m synthetic.bars && python -m synthetic.generate   # futures validation layer on generated data
 python -m pytest validation/ -q
 python validation/test_controls.py
+python -m research.spy_rsi2_backtest                        # reproduces the SPY rule's numbers (free data)
 ```
-
-Everything runs on generated data. Nothing depends on licensed market data or
-private files.
 
 ---
 
