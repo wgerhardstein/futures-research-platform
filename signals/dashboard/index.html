@@ -167,10 +167,6 @@ footer { grid-column: 1 / -1; font-size: 12px; color: var(--muted); display: fle
     <div class="ph"><h2>Backtest · same rules, real option prices</h2><span class="meta" id="bt-meta">--</span></div>
     <dl class="stats" id="bt-stats"></dl>
     <div class="pb" id="bt-chart"></div>
-    <div class="tw"><table>
-      <thead><tr><th class="l">Date</th><th class="l">Symbol</th><th class="l">Contract</th><th>Entry</th><th>In</th><th>Out</th><th class="l">Exit</th><th>Return</th><th>P&amp;L 1 lot</th></tr></thead>
-      <tbody id="bt-rows"></tbody>
-    </table></div>
     <div class="skips">Simulated from historical option prices (Alpaca 1-minute bars) with an estimated 2.5% cost per side. Not live fills. The rules were built on this period; an untouched 2024 holdout averaged +2.3% per trade.</div>
   </section>
 
@@ -381,9 +377,6 @@ function renderBacktest(b) {
   const grid = [mx, 0, -mx].map((v) => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--rule2)"/><text x="${W - R + 6}" y="${y(v) + 3.5}">${usd(Math.round(v))}</text>`).join("");
   $("bt-chart").innerHTML = `<div class="lab mut" style="font:11px var(--f-num);margin-bottom:6px">P&amp;L by month, 1 contract per ticket</div>
     <svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Backtest P&L by month">${grid}${bars}${labs}</svg>`;
-  $("bt-rows").innerHTML = b.recent.slice().reverse().map((r) => `<tr><td class="l">${esc(r.date)}</td><td class="l sym">${esc(r.sym)}</td><td class="l">${esc(r.contract)}</td>
-    <td>${esc(r.entry_t)}</td><td>${f2(r.px_in)}</td><td>${f2(r.px_out)}</td><td class="l">${r.exit === "stop" ? "Stop" : "15:55"}</td>
-    <td class="${cls(r.ret)}">${pct(r.ret)}</td><td class="${cls(r.usd)}">${usd(r.usd)}</td></tr>`).join("");
 }
 
 async function load() {
