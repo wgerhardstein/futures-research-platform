@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Signal Desk</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a broker's desk -- function bar on top, order ticket + blotter left, index signal right, tape and record below. Hairline rules, no cards. */
+:root {
+  --bg: #f4f6f8; --panel: #ffffff; --ink: #0e1621; --muted: #5d6b7a; --faint: #8a97a5; --rule: #d6dce3; --rule2: #e9edf1;
+  --sig: #a65f00; --sig-bg: #fff3df; --up: #087a4b; --up-bg: #e3f4ec; --dn: #b8352a; --dn-bg: #fbe7e4; --bar: #0e1621; --bar-ink: #e8edf2;
+  --f-head: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0b0f14; --panel: #10161d; --ink: #e6ebf0; --muted: #94a3b2; --faint: #66778a; --rule: #243040; --rule2: #1a2430;
+  --sig: #ffb020; --sig-bg: #2a2010; --up: #38c98a; --up-bg: #0f2a1f; --dn: #ff6f5e; --dn-bg: #2e1513; --bar: #000000; --bar-ink: #e6ebf0; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0b0f14; --panel: #10161d; --ink: #e6ebf0; --muted: #94a3b2; --faint: #66778a; --rule: #243040; --rule2: #1a2430;
+  --sig: #ffb020; --sig-bg: #2a2010; --up: #38c98a; --up-bg: #0f2a1f; --dn: #ff6f5e; --dn-bg: #2e1513; --bar: #000000; --bar-ink: #e6ebf0; color-scheme: dark }
+* { box-sizing: border-box }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 var(--f-body); }
+.num { font-family: var(--f-num); font-variant-numeric: tabular-nums; }
+.up { color: var(--up) } .dn { color: var(--dn) } .mut { color: var(--muted) } .sig { color: var(--sig) }
+
+.fbar { background: var(--bar); color: var(--bar-ink); padding-block: 9px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; font: 500 12px/1.2 var(--f-num); letter-spacing: .02em; }
+.fbar .brand { font: 700 15px/1 var(--f-head); letter-spacing: .06em; text-transform: uppercase; }
+.fbar .brand b { color: var(--sig); font-weight: 700 }
+.fbar .fn { opacity: .75 } .fbar .fn span { color: var(--sig); opacity: 1 }
+.fbar .grow { flex: 1 }
+.live { display: inline-flex; align-items: center; gap: 6px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint) }
+.dot.on { background: var(--up); box-shadow: 0 0 0 3px color-mix(in srgb, var(--up) 30%, transparent) }
+
+main { max-width: 1240px; margin: 0 auto; padding-block: 18px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 18px; }
+section { background: var(--panel); border: 1px solid var(--rule); min-width: 0; }
+.full { grid-column: 1 / -1 }
+.ph { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 12px; padding: 9px 14px; border-bottom: 1px solid var(--rule); }
+.ph h2 { margin: 0; font: 600 13px/1.2 var(--f-head); letter-spacing: .08em; text-transform: uppercase; }
+.ph .meta { font: 12px/1.2 var(--f-num); color: var(--muted); text-align: right }
+.pb { padding: 14px }
+
+.chip { display: inline-block; font: 600 11px/1 var(--f-head); letter-spacing: .07em; text-transform: uppercase; padding: 4px 7px; border: 1px solid currentColor; }
+.chip.sig { background: var(--sig-bg) } .chip.up { background: var(--up-bg) } .chip.dn { background: var(--dn-bg) } .chip.mut { color: var(--muted) }
+
+/* order ticket */
+.ticket { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px 20px; align-items: start; }
+.tk-head { font: 600 11px/1 var(--f-head); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px }
+.tk-contract { font: 700 clamp(24px, 3.6vw, 34px)/1.05 var(--f-head); letter-spacing: .01em; text-wrap: balance }
+.tk-sub { margin-top: 6px; color: var(--muted) }
+.tk-res { text-align: right }
+.tk-res .big { font: 600 clamp(26px, 4vw, 38px)/1 var(--f-num); }
+.tk-res .small { font: 13px/1.4 var(--f-num); color: var(--muted); margin-top: 4px }
+.tk-grid { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--rule2); }
+.tk-grid div { padding: 10px 12px 2px 0; }
+.tk-grid dt { font: 600 10.5px/1 var(--f-head); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.tk-grid dd { margin: 5px 0 0; font: 500 15px/1.3 var(--f-num); }
+.copy { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; background: var(--bg); border: 1px dashed var(--rule); padding: 9px 12px; font: 13px/1.4 var(--f-num); }
+.copy code { font: inherit; flex: 1; min-width: 0; overflow-wrap: anywhere }
+button { font: 600 11px/1 var(--f-head); letter-spacing: .07em; text-transform: uppercase; color: var(--ink); background: var(--panel); border: 1px solid var(--rule); padding: 7px 10px; cursor: pointer; }
+button:hover { border-color: var(--ink) } button:focus-visible { outline: 2px solid var(--sig); outline-offset: 2px }
+.empty { color: var(--muted); padding: 6px 0 }
+
+/* tables */
+.tw { overflow-x: auto }
+table { width: 100%; border-collapse: collapse; font: 13px/1.3 var(--f-num); font-variant-numeric: tabular-nums; }
+th { font: 600 10.5px/1 var(--f-head); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--rule); white-space: nowrap }
+td { text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--rule2); white-space: nowrap }
+th:first-child, td:first-child, th.l, td.l { text-align: left }
+tr.prim td { background: var(--sig-bg) }
+tr:last-child td { border-bottom: 0 }
+.sym { font-weight: 600 }
+.skips { padding: 10px 14px; border-top: 1px solid var(--rule2); font-size: 12.5px; color: var(--muted) }
+
+/* SPY panel */
+.state { display: flex; align-items: baseline; justify-content: space-between; gap: 10px }
+.state .big { font: 700 34px/1 var(--f-head); letter-spacing: .02em }
+.trig { margin-top: 8px; font-size: 13.5px }
+.trig b { font-family: var(--f-num); font-weight: 600 }
+.kv { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 14px; border-top: 1px solid var(--rule2) }
+.kv div { padding: 9px 8px 0 0 }
+.kv dt { font: 600 10.5px/1 var(--f-head); letter-spacing: .08em; text-transform: uppercase; color: var(--muted) }
+.kv dd { margin: 5px 0 0; font: 500 15px/1.2 var(--f-num) }
+.meter { margin-top: 16px }
+.meter .lab { display: flex; justify-content: space-between; font: 11px/1 var(--f-num); color: var(--muted); margin-bottom: 6px }
+.meter .track { position: relative; height: 10px; background: var(--rule2); }
+.meter .zone { position: absolute; left: 0; top: 0; bottom: 0; width: 10%; background: var(--sig-bg); border-right: 1px solid var(--sig) }
+.meter .pin { position: absolute; top: -4px; width: 2px; height: 18px; background: var(--ink) }
+svg text { font: 10.5px var(--f-num); fill: var(--muted) }
+.chart { margin-top: 16px }
+
+/* tape */
+.tape { list-style: none; margin: 0; padding: 4px 0; font: 13px/1.45 var(--f-num); max-height: 340px; overflow-y: auto }
+.tape li { display: grid; grid-template-columns: 74px 64px minmax(0, 1fr); gap: 10px; padding: 6px 14px; border-bottom: 1px solid var(--rule2) }
+.tape li:last-child { border-bottom: 0 }
+.tape .t { color: var(--muted) }
+.tape .k { font: 600 10.5px/1.9 var(--f-head); letter-spacing: .08em; text-transform: uppercase; }
+.tape .x { overflow-wrap: anywhere }
+.tape li.entry { background: var(--sig-bg) }
+
+/* record + evidence */
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--rule) }
+.stats div { padding: 12px 14px; border-right: 1px solid var(--rule2) } .stats div:last-child { border-right: 0 }
+.stats dt { font: 600 10.5px/1 var(--f-head); letter-spacing: .08em; text-transform: uppercase; color: var(--muted) }
+.stats dd { margin: 6px 0 0; font: 600 20px/1 var(--f-num) }
+.ev { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ev > div { padding: 14px; min-width: 0 } .ev > div + div { border-left: 1px solid var(--rule2) }
+.ev h3 { margin: 0 0 2px; font: 600 14px/1.2 var(--f-head); letter-spacing: .03em }
+.ev .src { font-size: 12px; color: var(--muted); margin-bottom: 10px }
+.ev table td, .ev table th { padding: 6px 0 6px 10px } .ev table td:first-child { padding-left: 0; white-space: normal; color: var(--muted); font-family: var(--f-body) }
+.note { font-size: 12.5px; color: var(--muted); margin: 10px 0 0; max-width: 62ch }
+footer { grid-column: 1 / -1; font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 18px; justify-content: space-between }
+
+@media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr) } .ev { grid-template-columns: minmax(0, 1fr) } .ev > div + div { border-left: 0; border-top: 1px solid var(--rule2) } }
+@media (max-width: 560px) { .ticket { grid-template-columns: minmax(0, 1fr) } .tk-res { text-align: left } .tk-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) } .stats { grid-template-columns: repeat(2, minmax(0, 1fr)) } .tape li { grid-template-columns: 64px minmax(0, 1fr) } .tape .k { display: none } }
+@media (prefers-reduced-motion: no-preference) { .flash { animation: fl 1.2s ease-out } @keyframes fl { from { background: var(--sig-bg) } } }
+</style>
+</head>
+<body>
+<header class="fbar">
+  <span class="brand">Signal<b>Desk</b></span>
+  <span class="fn"><span>F1</span> ORB-0DTE</span>
+  <span class="fn"><span>F2</span> SPY RSI(2)</span>
+  <span class="grow"></span>
+  <span id="sess">Session --</span>
+  <span id="upd">Updated --</span>
+  <span class="live"><i class="dot" id="mdot"></i><span id="mkt">--</span></span>
+</header>
+
+<main>
+  <section id="orb">
+    <div class="ph"><h2>0DTE Breakout · Order ticket</h2><span class="meta" id="orb-meta">--</span></div>
+    <div class="pb" id="ticket"><div class="empty">Loading the latest session…</div></div>
+    <div class="tw"><table>
+      <thead><tr><th>#</th><th class="l">Symbol</th><th class="l">Side</th><th>Trigger</th><th>Stop</th><th class="l">Contract</th><th>In (mid)</th><th>Out / now</th><th>P&amp;L 1 lot</th><th class="l">Status</th></tr></thead>
+      <tbody id="watch"></tbody>
+    </table></div>
+    <div class="skips" id="skips"></div>
+  </section>
+
+  <section id="spy">
+    <div class="ph"><h2>SPY · Dip-buy above the 200-day</h2><span class="meta" id="spy-meta">--</span></div>
+    <div class="pb" id="spybody"><div class="empty">Loading…</div></div>
+  </section>
+
+  <section class="full">
+    <div class="ph"><h2>Tape</h2><span class="meta">Every event from the paper trader, newest last</span></div>
+    <ul class="tape" id="tape"></ul>
+  </section>
+
+  <section class="full">
+    <div class="ph"><h2>Paper record</h2><span class="meta">1 contract per signal · mid-to-mid, and ask-in / bid-out</span></div>
+    <dl class="stats" id="stats"></dl>
+    <div class="tw"><table>
+      <thead><tr><th class="l">Date</th><th class="l">Symbol</th><th class="l">Contract</th><th class="l">Role</th><th>In</th><th>Out</th><th>Return</th><th>At bid/ask</th><th>P&amp;L 1 lot</th></tr></thead>
+      <tbody id="hist"></tbody>
+    </table></div>
+  </section>
+
+  <section class="full">
+    <div class="ph"><h2>Why these two rules</h2><span class="meta">Pre-registered tests · real option prices where available</span></div>
+    <div class="ev">
+      <div>
+        <h3>0DTE opening-range breakout on the stock in play</h3>
+        <div class="src">Zarattini, Barbon &amp; Aziz (2024), <i>A Profitable Day Trading Strategy for the U.S. Equity Market</i></div>
+        <div class="tw"><table>
+          <tr><th class="l"></th><th>Trades</th><th>Per trade</th><th>95% range</th></tr>
+          <tr><td>Build sample, 2024-09 → 2026-10</td><td class="num">393</td><td class="num up">+8.3%</td><td class="num">+0.9 … +17.1</td></tr>
+          <tr><td>Untouched holdout, 2024-02 → 2024-09</td><td class="num">144</td><td class="num">+2.3%</td><td class="num">−6.5 … +12.0</td></tr>
+        </table></div>
+        <p class="note">About one trade in four wins; winners average about +$70 a contract, losers about −$14. The holdout result is positive but not
+          statistically clear, which is why it is paper-traded first. VIX above 20 and options over $2.00 are skipped.</p>
+      </div>
+      <div>
+        <h3>SPY RSI(2) dip-buy</h3>
+        <div class="src">Connors &amp; Alvarez (2008), <i>Short Term Trading Strategies That Work</i></div>
+        <div class="tw"><table>
+          <tr><th class="l"></th><th>Trades</th><th>Win</th><th>Per trade</th></tr>
+          <tr><td>SPY shares, 1994 → 2026</td><td class="num">263</td><td class="num">76%</td><td class="num up">+0.63%</td></tr>
+          <tr><td>45-day ATM call, real prices 2024 → 2026</td><td class="num">24</td><td class="num">71%</td><td class="num up">+8.9%</td></tr>
+        </table></div>
+        <p class="note">Buy at the close when SPY is above its 200-day average and 2-day RSI is under 10; sell at the first close above the 5-day
+          average. Beat 2,000 random-entry tests. Selling put spreads above the 200-day was also tested and failed.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Paper signals only. Nothing here places orders. Not financial advice; options can expire worthless.</span>
+    <span>Running on this computer · quotes: Alpaca (indicative feed) · refreshes every minute</span>
+  </footer>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const f2 = (x) => (x == null ? "--" : Number(x).toFixed(2));
+const pct = (x) => (x == null ? "--" : (x > 0 ? "+" : x < 0 ? "−" : "") + Math.abs(Math.round(x)) + "%");
+const usd = (x) => (x == null ? "--" : (x > 0 ? "+$" : x < 0 ? "−$" : "$") + Math.abs(Math.round(x)).toLocaleString());
+const cls = (x) => (x > 0 ? "up" : x < 0 ? "dn" : "");
+let lastStamp = null;
+
+function nice(osym) {
+  const m = /^([A-Z]+)(\d{2})(\d{2})(\d{2})([CP])(\d{8})$/.exec(osym || "");
+  if (!m) return osym || "--";
+  return `${m[1]} ${+m[3]}/${+m[4]} ${+m[6] / 1000} ${m[5] === "C" ? "call" : "put"}`;
+}
+function webull(osym, limit) {
+  const m = /^([A-Z]+)(\d{2})(\d{2})(\d{2})([CP])(\d{8})$/.exec(osym || "");
+  if (!m) return "";
+  const mon = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+m[3] - 1];
+  return `Buy to open 1 ${m[1]} ${mon} ${+m[4]} '${m[2]} $${+m[6] / 1000} ${m[5] === "C" ? "Call" : "Put"} · Limit $${f2(limit)} · Day`;
+}
+
+function marketClock() {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", hour: "numeric", minute: "numeric", hourCycle: "h23" })
+    .formatToParts(new Date()).map((x) => [x.type, x.value]));
+  const mins = +p.hour * 60 + +p.minute, wk = !["Sat", "Sun"].includes(p.weekday);
+  const open = wk && mins >= 570 && mins < 960;
+  $("mkt").textContent = open ? "MARKET OPEN" : wk && mins < 570 ? "PRE-MARKET" : "MARKET CLOSED";
+  $("mdot").classList.toggle("on", open);
+}
+
+function renderTicket(o) {
+  const prim = o.watch.find((w) => w.primary);
+  const ticket = $("ticket");
+  if (o.trades_today === false) {
+    ticket.innerHTML = `<div class="tk-head">No trade today</div><div class="tk-contract">Sitting out</div>
+      <div class="tk-sub">VIX closed at ${f2(o.vix_prev)} yesterday, above the rule's 20 limit. Signals below are logged for fill data only.</div>`;
+    return;
+  }
+  if (!prim) {
+    const waiting = o.watch.filter((w) => w.state === "waiting");
+    ticket.innerHTML = o.ended
+      ? `<div class="tk-head">Session closed</div><div class="tk-contract">No breakout triggered</div><div class="tk-sub">None of the watched names broke its level before 15:55.</div>`
+      : o.watch.length
+        ? `<div class="tk-head">Armed · waiting for a break</div><div class="tk-contract">${waiting.map((w) => `${esc(w.sym)} ${w.side === "LONG" ? "↑" : "↓"} ${f2(w.trigger)}`).join("&nbsp;&nbsp; ") || "--"}</div>
+           <div class="tk-sub">The first name to trade through its level becomes the ticket. Calls on an upside break, puts on a downside break.</div>`
+        : `<div class="tk-head">Pre-market</div><div class="tk-contract">Ranking at 9:35 ET</div><div class="tk-sub">The paper trader starts at 9:25 and ranks the 250-stock universe by opening volume at 9:35.</div>`;
+    return;
+  }
+  const closed = prim.state === "closed";
+  const outMid = closed ? (prim.bid_out + prim.ask_out) / 2 : prim.bid_now != null ? (prim.bid_now + prim.ask_now) / 2 : null;
+  const ret = closed ? prim.ret : prim.ret_now, pl = closed ? prim.usd : prim.usd_now;
+  const status = closed ? `<span class="chip ${cls(ret)}">Closed · ${esc(prim.exit_why).includes("stop") ? "stopped" : "held to " + esc(prim.exit_why)}</span>`
+                        : `<span class="chip sig">Open · live</span>`;
+  const order = webull(prim.osym, prim.mid_in);
+  ticket.innerHTML = `
+    <div class="ticket">
+      <div>
+        <div class="tk-head">Signal ${esc(prim.entry_t || "")} ET · ${esc(prim.sym)} broke ${f2(prim.trigger)} ${prim.side === "LONG" ? "up" : "down"}</div>
+        <div class="tk-contract">${esc(nice(prim.osym))}</div>
+        <div class="tk-sub">${status}</div>
+      </div>
+      <div class="tk-res">
+        <div class="big ${cls(ret)}">${pct(ret)}</div>
+        <div class="small">${usd(pl)} per contract${closed ? "" : " (marked to mid)"}</div>
+      </div>
+      <dl class="tk-grid">
+        <div><dt>Action</dt><dd>Buy to open</dd></div>
+        <div><dt>Limit (mid)</dt><dd>${f2(prim.mid_in)}</dd></div>
+        <div><dt>Bid / ask at signal</dt><dd>${f2(prim.bid_in)} / ${f2(prim.ask_in)}</dd></div>
+        <div><dt>${closed ? "Exit (mid)" : "Now (mid)"}</dt><dd>${f2(outMid)}</dd></div>
+        <div><dt>Stop</dt><dd>${esc(prim.sym)} 1-min close ${prim.side === "LONG" ? "<" : ">"} ${f2(prim.stop)}</dd></div>
+        <div><dt>Else exit</dt><dd>15:55 ET</dd></div>
+        <div><dt>Mid fill</dt><dd>${prim.filled ? "Filled" : "Not filled"}</dd></div>
+        <div><dt>Max loss</dt><dd>${usd(-prim.mid_in * 100)} / lot</dd></div>
+      </dl>
+      ${order ? `<div class="copy"><code id="order">${esc(order)}</code><button type="button" id="cp">Copy order</button></div>` : ""}
+    </div>`;
+  const cp = $("cp");
+  if (cp) cp.onclick = () => navigator.clipboard.writeText(order).then(() => (cp.textContent = "Copied"), () => {
+    const r = document.createRange(); r.selectNodeContents($("order")); const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+  });
+}
+
+function renderOrb(o) {
+  $("sess").textContent = `Session ${o.date || "--"}`;
+  $("orb-meta").textContent = o.date ? `${o.date} · VIX prior close ${f2(o.vix_prev)}` : "--";
+  renderTicket(o);
+  $("watch").innerHTML = o.watch.length ? o.watch.map((w) => {
+    const closed = w.state === "closed", open = w.state === "open";
+    const out = closed ? (w.bid_out + w.ask_out) / 2 : open && w.bid_now != null ? (w.bid_now + w.ask_now) / 2 : null;
+    const r = closed ? w.ret : open ? w.ret_now : null, p = closed ? w.usd : open ? w.usd_now : null;
+    const stat = closed ? (w.primary ? "Ticket" : w.filled ? "Logged" : "No fill")
+      : open ? (w.primary ? "Ticket · live" : "Logged · live") : w.state === "skipped" ? "Skipped" : o.ended ? "Not hit" : "Waiting";
+    const stop = w.stop != null ? f2(w.stop) : (w.side === "LONG" ? f2(w.trigger + w.stop_dist) : f2(w.trigger + w.stop_dist));
+    return `<tr class="${w.primary ? "prim" : ""}"><td>${w.rank}</td><td class="l sym">${esc(w.sym)}</td><td class="l">${w.side === "LONG" ? "Call" : "Put"}</td>
+      <td>${f2(w.trigger)}</td><td>${stop}</td><td class="l">${esc(nice(w.osym))}</td><td>${w.mid_in != null ? f2(w.mid_in) : "--"}</td><td>${f2(out)}</td>
+      <td class="${cls(p)}">${p == null ? "--" : usd(p)}</td><td class="l">${stat}</td></tr>`;
+  }).join("") : `<tr><td colspan="10" class="l mut">No watch list yet for this session.</td></tr>`;
+  $("skips").innerHTML = o.skipped.length
+    ? "Ranked but skipped: " + o.skipped.slice(0, 10).map((s) => `<b>${esc(s.sym)}</b> (${esc(s.why)})`).join(", ") + "."
+    : "";
+  $("tape").innerHTML = o.events.map((e) => {
+    const k = { entry: "Signal", entry2: "Logged", win: "Exit", loss: "Exit", watch: "Watch", info: "Info" }[e.kind] || "Info";
+    const c = { entry: "sig", win: "up", loss: "dn" }[e.kind] || "mut";
+    return `<li class="${e.kind === "entry" ? "entry" : ""}"><span class="t">${esc(e.t)}</span><span class="k ${c}">${k}</span><span class="x">${esc(e.text)}</span></li>`;
+  }).join("") || `<li><span class="t">--</span><span class="k mut">Info</span><span class="x mut">Nothing yet today.</span></li>`;
+}
+
+function renderSpy(s) {
+  const b = $("spybody");
+  if (!s || s.error) { b.innerHTML = `<div class="empty">SPY data unavailable (${esc(s && s.error)}).</div>`; return; }
+  $("spy-meta").textContent = `${s.live ? "live" : "close"} ${s.asof}`;
+  const above = s.price > s.sma200;
+  const big = s.action === "BUY" ? `<span class="big sig">BUY</span><span class="chip sig">At the close</span>` : `<span class="big">${above ? "Armed" : "Off"}</span><span class="chip mut">${above ? "Above 200-day" : "Below 200-day"}</span>`;
+  const trig = s.action === "BUY" ? `Buy SPY (or a ~45-day at-the-money call) at the close. Sell at the first close above <b>${f2(s.sma5)}</b>.`
+    : above && s.buy_below ? `Fires if SPY closes at or below <b>${f2(s.buy_below)}</b>, ${Math.abs(100 * (s.buy_below / s.price - 1)).toFixed(1)}% under ${s.live ? "the current price" : "the last close"}.`
+    : above ? "Needs a sharper two-day drop before it fires." : "Rule is off while SPY is below its 200-day average.";
+  const h = s.history || [];
+  b.innerHTML = `
+    <div class="state">${big}</div>
+    <div class="trig">${trig}</div>
+    <dl class="kv"><div><dt>SPY</dt><dd>${f2(s.price)}</dd></div><div><dt>200-day</dt><dd>${f2(s.sma200)}</dd></div><div><dt>5-day</dt><dd>${f2(s.sma5)}</dd></div></dl>
+    <div class="meter"><div class="lab"><span>RSI(2) <b class="num">${s.rsi2.toFixed(1)}</b></span><span>buy zone &lt; 10</span></div>
+      <div class="track"><div class="zone"></div><div class="pin" style="left:calc(${Math.max(0, Math.min(100, s.rsi2))}% - 1px)"></div></div></div>
+    <div class="chart">${chart(h, s.buy_below)}</div>`;
+}
+
+function chart(h, trig) {
+  if (h.length < 2) return "";
+  const W = 420, H = 150, L = 4, R = 46, T = 8, B = 18;
+  const ys = h.flatMap((p) => [p.c, p.sma200]).filter((v) => v != null).concat(trig ? [trig] : []);
+  const lo = Math.min(...ys), hi = Math.max(...ys), pad = (hi - lo) * 0.06;
+  const y = (v) => T + (H - T - B) * (1 - (v - (lo - pad)) / (hi - lo + 2 * pad));
+  const x = (i) => L + (W - L - R) * (i / (h.length - 1));
+  const line = (k) => h.map((p, i) => (p[k] == null ? "" : `${i && h[i - 1][k] != null ? "L" : "M"}${x(i).toFixed(1)},${y(p[k]).toFixed(1)}`)).join("");
+  const area = line("c") + `L${x(h.length - 1)},${H - B}L${x(0)},${H - B}Z`;
+  const last = h[h.length - 1];
+  const ticks = [lo, (lo + hi) / 2, hi].map((v) => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--rule2)"/><text x="${W - R + 6}" y="${y(v) + 3.5}">${v.toFixed(0)}</text>`).join("");
+  const first = h[0].d.slice(5), lastd = last.d.slice(5);
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="SPY daily closes vs 200-day average, last 6 months">
+    ${ticks}
+    <path d="${area}" fill="var(--ink)" fill-opacity="0.05"/>
+    <path d="${line("sma200")}" fill="none" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="4 3"/>
+    <path d="${line("c")}" fill="none" stroke="var(--ink)" stroke-width="1.5"/>
+    ${trig ? `<line x1="${L}" x2="${W - R}" y1="${y(trig)}" y2="${y(trig)}" stroke="var(--sig)" stroke-width="1"/><text x="${W - R + 6}" y="${y(trig) + 3.5}" style="fill:var(--sig)">${trig.toFixed(0)}</text>` : ""}
+    <circle cx="${x(h.length - 1)}" cy="${y(last.c)}" r="3" fill="var(--ink)"/>
+    <text x="${L}" y="${H - 4}">${first}</text><text x="${W - R}" y="${H - 4}" text-anchor="end">${lastd}</text>
+  </svg>
+  <div class="lab mut" style="font:11px var(--f-num);display:flex;gap:14px;margin-top:4px"><span>— SPY close</span><span>- - 200-day</span>${trig ? `<span class="sig">— buy level</span>` : ""}</div>`;
+}
+
+function renderRecord(t) {
+  const p = t.filter((r) => r.primary);
+  const tot = p.reduce((a, r) => a + r.usd, 0), wins = p.filter((r) => r.ret > 0).length, fills = p.filter((r) => r.filled).length;
+  $("stats").innerHTML = `<div><dt>Ticket trades</dt><dd>${p.length}</dd></div><div><dt>Winners</dt><dd>${p.length ? Math.round(100 * wins / p.length) + "%" : "--"}</dd></div>
+    <div><dt>Mid fills</dt><dd>${p.length ? fills + "/" + p.length : "--"}</dd></div><div><dt>P&amp;L, 1 lot each</dt><dd class="${cls(tot)}">${usd(tot)}</dd></div>`;
+  $("hist").innerHTML = t.length ? t.slice().reverse().map((r) => `<tr class="${r.primary ? "prim" : ""}"><td class="l">${esc(r.date)}</td><td class="l sym">${esc(r.sym)}</td>
+    <td class="l">${esc(r.contract)}</td><td class="l">${r.primary ? "Ticket" : r.filled ? "Logged" : "Logged · no mid fill"}</td><td>${f2(r.mid_in)}</td><td>${f2(r.mid_out)}</td>
+    <td class="${cls(r.ret)}">${pct(r.ret)}</td><td class="${cls(r.ret_cons)}">${pct(r.ret_cons)}</td><td class="${cls(r.usd)}">${usd(r.usd)}</td></tr>`).join("")
+    : `<tr><td colspan="9" class="l mut">The paper record starts with the first session.</td></tr>`;
+}
+
+async function load() {
+  try {
+    const r = await fetch("data.json", { cache: "no-store" });
+    const d = await r.json();
+    if (d.updated !== lastStamp) {
+      $("upd").textContent = `Updated ${d.updated.slice(5)} ET`;
+      renderOrb(d.orb); renderSpy(d.spy); renderRecord(d.trades);
+      if (lastStamp) document.querySelectorAll("section").forEach((s) => { s.classList.remove("flash"); void s.offsetWidth; s.classList.add("flash"); });
+      lastStamp = d.updated;
+    }
+  } catch (e) {
+    $("upd").textContent = "Data unavailable";
+  }
+}
+marketClock(); load();
+setInterval(marketClock, 30000); setInterval(load, 60000);
+</script>
+</body>
+</html>

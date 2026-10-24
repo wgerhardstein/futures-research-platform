@@ -2,6 +2,7 @@
 
     python -m signals setup            save your Alpaca keys and test them (the installer runs this)
     python -m signals start            run everything automatically every weekday (leave it open)
+    python -m signals dashboard        open the dashboard only (http://localhost:8321)
     python -m signals check            verify keys + data access (run this first)
     python -m signals spy [--record]   SPY RSI(2) dip-buy signal (run ~3:50 ET; --record updates the paper position)
     python -m signals orb [--now]      0DTE breakout: live paper session 9:35-15:55 ET (--now: one ranking, any time after 9:35)
@@ -38,6 +39,9 @@ def main() -> None:
     elif cmd == "start":
         from signals import scheduler
         scheduler.main()
+    elif cmd == "dashboard":
+        from signals import web
+        web.serve()
     elif cmd == "check":
         check()
     elif cmd == "spy":

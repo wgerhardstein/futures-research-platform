@@ -65,7 +65,7 @@ def backtest(close: pd.Series, cost: float = 0.0002) -> pd.DataFrame:
 def closes() -> pd.Series:
     """Up to yesterday from SIP daily bars (free accounts may read data older than 15 minutes) + the live IEX price."""
     now = datetime.now(ET)
-    start = (now - pd.Timedelta(days=420)).strftime("%Y-%m-%d")
+    start = (now - pd.Timedelta(days=640)).strftime("%Y-%m-%d")
     end = (pd.Timestamp.now(tz=ET) - pd.Timedelta(minutes=16)).isoformat()  # free plan: SIP data must be > 15 minutes old
     b = alpaca.stock_bars(["SPY"], "1Day", start, end, feed="sip")["SPY"]
     s = pd.Series({pd.Timestamp(x["t"]).tz_convert(ET).date(): float(x["c"]) for x in b}).sort_index()

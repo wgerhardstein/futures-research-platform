@@ -9,6 +9,10 @@ Two parts:
 2. **The validation layer** (everything below *My role*): the futures research program that rejected 91.8% of the
    strategies it tested, and the tooling that decided which numbers to trust.
 
+![Signal Desk dashboard: today's order ticket, watch list, SPY signal and event tape](docs/dashboard.png)
+
+*The dashboard that opens when you start it. This is the 2026-10-23 paper session: SLB 50 call, +275%.*
+
 ---
 
 ## Quick start (5 minutes)
@@ -30,12 +34,13 @@ git clone https://github.com/wgerhardstein/futures-research-platform.git && cd f
 ./start.sh
 ```
 
-That's it. While the window is open, it runs by itself every weekday (US Eastern time):
+That's it. Your browser opens the **Signal Desk** dashboard at `http://localhost:8321`, which runs only on your
+computer. While the window is open, it runs by itself every weekday (US Eastern time):
 
 | Time | What happens |
 |---|---|
-| 9:25 → 15:55 | 0DTE breakout session. At 9:35 it prints the day's stocks in play, then each entry with the exact option contract, live bid/ask, whether a limit at mid would have filled, the stop, and the exit. |
-| 15:50 | SPY dip-buy check: BUY / HOLD / SELL / no trade, with the ~45-day call to use. |
+| 9:25 → 15:55 | 0DTE breakout session. At 9:35 the dashboard shows the day's stocks in play and the three names it is watching. When one breaks out, the **order ticket** shows the exact contract, the limit, the stop and a **Copy order** button with Webull-style text, ready to place yourself if you want to. |
+| 15:50 | SPY dip-buy check. The dashboard always shows the price at which it would fire. |
 
 Everything is also saved under `data/signals/`, including `run.log` and the paper-trade CSVs. The computer has to be on
 and awake at those times.
@@ -45,6 +50,7 @@ and awake at those times.
 
 | Command | Does |
 |---|---|
+| `dashboard` | Open the dashboard without the scheduler |
 | `status` | Paper results so far against the backtest |
 | `spy` | SPY signal right now (preview, changes nothing) |
 | `orb --now` | Today's breakout ranking right now (after 9:35) |
@@ -230,7 +236,7 @@ and deliberately never trades, so the structure is legible without giving those 
 demonstrated against that placeholder, which has no edge.
 
 ```
-signals/      daily options signal tool (orb = 0DTE breakout, spy_rsi2 = SPY dip-buy), paper logs, CLI
+signals/      daily options signal tool (orb = 0DTE breakout, spy_rsi2 = SPY dip-buy), local dashboard (web.py), CLI
 research/     RESULTS.md + a free-data reproduction of the SPY rule
 tests/        unit tests for the signal rules (no network)
 engine/       the futures scoring model

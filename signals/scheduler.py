@@ -1,6 +1,7 @@
 """`python -m signals start`: leave it running and it does the whole day by itself, every weekday (US Eastern time):
     9:25   0DTE breakout paper session (runs until 15:55)
     15:50  SPY RSI(2) signal, recorded to the paper position
+The dashboard opens in your browser at http://localhost:8321 and refreshes every minute.
 Each job runs as its own process, so a network error in one cannot stop the other. Output also goes to data/signals/run.log.
 Stop with Ctrl+C. Market holidays are detected and skipped by each job.
 """
@@ -39,6 +40,11 @@ def next_run(now: datetime) -> tuple[datetime, list[str]]:
 
 def main() -> None:
     say("signals started. Leave this window open (and the computer awake). Ctrl+C to stop.")
+    try:
+        from signals import web
+        web.serve(open_browser=True, block=False)
+    except OSError:
+        say("dashboard already running at http://localhost:8321")
     procs: list[subprocess.Popen] = []
     now = datetime.now(ET)
     if now.weekday() < 5 and (9, 25) <= (now.hour, now.minute) < (9, 35):  # started a few minutes late: still catch today's 9:35

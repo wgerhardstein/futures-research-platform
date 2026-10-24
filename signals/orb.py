@@ -40,8 +40,32 @@ FIELDS = ["date", "sym", "rank", "primary", "skipday", "vix_prev", "side", "rvol
           "ret_mid", "ret_conservative", "usd_mid_1lot"]
 
 
+SESSION_FILE = OUT / "orb_session.json"
+SESSION: dict = {}
+
+
 def say(msg: str) -> None:
     print(f"{datetime.now(ET):%H:%M:%S} ORB {msg}", flush=True)
+
+
+def event(kind: str, text: str) -> None:
+    """Structured event for the dashboard tape (kinds: info, watch, entry, entry2, win, loss)."""
+    SESSION.setdefault("events", []).append(dict(t=f"{datetime.now(ET):%H:%M:%S}", kind=kind, text=text))
+    save()
+
+
+def public(w: dict) -> dict:
+    keep = ("rank", "sym", "osym", "primary", "mid_in", "bid_in", "ask_in", "filled", "stop", "entry_px", "bid_out", "ask_out", "ret", "usd", "exit_why", "exit_t")
+    d = {k: w[k] for k in keep if k in w}
+    d.update(side="LONG" if w["long"] else "SHORT", trigger=w["lvl"], stop_dist=-w["risk"] if w["long"] else w["risk"], entry_t=w.get("trig_time"),
+             state={"wait": "waiting", "open": "open"}.get(w["state"], "closed" if "ret" in w else "skipped"))
+    d.setdefault("primary", False)
+    return d
+
+
+def save() -> None:
+    s = dict(SESSION, watch=[public(w) for w in SESSION.get("watch", [])])
+    SESSION_FILE.write_text(json.dumps(s))
 
 
 # ---------- pure rule pieces (unit-tested) ----------
@@ -171,6 +195,9 @@ def close(w: dict, why: str, today: str) -> None:
     mid = (bid + ask) / 2
     rm, rc = mid / w["mid_in"] - 1, bid / w["ask_in"] - 1
     w["state"] = "done"
+    w.update(bid_out=bid, ask_out=ask, ret=round(100 * rm), usd=round(100 * (mid - w["mid_in"])), exit_why=why, exit_t=f"{datetime.now(ET):%H:%M:%S}")
+    event("win" if rm > 0 else "loss", f"EXIT {w['sym']} ({'stop' if 'stop' in why else 'held to ' + why}): {w['mid_in']:.2f} -> {mid:.2f}, "
+          f"{100 * rm:+.0f}% (${100 * (mid - w['mid_in']):+.0f} per contract).")
     say(f"EXIT {w['sym']} ({why}) {w['osym']} {bid:.2f}/{ask:.2f} | mid-to-mid {100 * rm:+.0f}% (${100 * (mid - w['mid_in']):+.0f}/contract)"
         f" | ask-in bid-out {100 * rc:+.0f}%{' | PRIMARY' if w['primary'] else ''}{'' if w['filled'] else ' | (entry would NOT have filled)'}")
     write(dict(date=today, sym=w["sym"], rank=w["rank"], primary=w["primary"], skipday=w["skip"], vix_prev=w["vix"],
@@ -189,6 +216,10 @@ def run(now_only: bool = False) -> None:
     base = prep(today)
     vx = vix_prev(today)
     skip = vx is not None and vx > 20
+    SESSION.clear()
+    SESSION.update(date=today, vix_prev=None if vx is None else round(vx, 2), trades_today=not skip, ranked=[], skipped=[], watch=[], events=[], ended=False)
+    event("info", f"Session start. VIX closed {vx if vx is None else round(vx, 2)} yesterday: "
+          + ("above 20, the rule sits out (logged only)." if skip else "the rule trades today."))
     say(f"{today}: VIX prior close {vx if vx is None else round(vx, 2)} -> {'SKIPDAY (VIX > 20): logged only, the rule does not trade' if skip else 'the rule trades today'}")
     t935 = now.replace(hour=9, minute=35, second=5, microsecond=0)
     if not now_only:
@@ -197,6 +228,8 @@ def run(now_only: bool = False) -> None:
     r = rank(base, today)
     if r.empty:
         say("no eligible names"); return
+    SESSION["ranked"] = [dict(sym=x.sym, rvol=round(x.rvol5, 1), side="LONG" if x.long else "SHORT", trigger=x.lvl) for x in r.head(8).itertuples()]
+    event("info", f"9:35 ranking: {', '.join(r.sym.head(5))} lead by opening volume.")
     say("ranked: " + ", ".join(f"{x.sym} {x.rvol5:.1f}x {'L' if x.long else 'S'} @{x.lvl:.2f}" for x in r.head(8).itertuples()))
     watch = []
     for x in r.itertuples():
@@ -206,11 +239,14 @@ def run(now_only: bool = False) -> None:
         osym = contract(x.sym, x.long, px, today)
         q = quote(osym) if osym else None
         if not q:
-            say(f"{x.sym}: no listed/quoted option, skip"); continue
+            SESSION["skipped"].append(dict(sym=x.sym, why="no listed 0DTE option")); say(f"{x.sym}: no listed/quoted option, skip"); continue
         bid, ask = q
         if ask > CAP:
+            SESSION["skipped"].append(dict(sym=x.sym, why=f"option ask ${ask:.2f} over the $2.00 cap"))
             say(f"{x.sym}: {osym} ask {ask:.2f} > ${CAP:.2f} cap, skip"); continue
-        watch.append(dict(sym=x.sym, rank=len(watch) + 1, long=x.long, lvl=x.lvl, risk=x.risk, rvol5=x.rvol5, state="wait", skip=skip, vix=vx))
+        watch.append(dict(sym=x.sym, rank=len(watch) + 1, long=x.long, lvl=x.lvl, risk=x.risk, rvol5=x.rvol5, state="wait", skip=skip, vix=vx, osym=osym))
+        SESSION["watch"] = watch
+        event("watch", f"Watching #{len(watch)} {x.sym}: {'long' if x.long else 'short'} on a break of {x.lvl:.2f}.")
         say(f"WATCH #{len(watch)} {x.sym} {'LONG' if x.long else 'SHORT'} trigger {x.lvl:.2f}, stop = 1-min close "
             f"{'below' if x.long else 'above'} trigger {'-' if x.long else '+'}{x.risk:.2f} | now {osym} {bid:.2f}/{ask:.2f}")
     if now_only:
@@ -243,8 +279,11 @@ def run(now_only: bool = False) -> None:
                 prim = not primary_taken and not skip
                 primary_taken = primary_taken or prim
                 stop = p - w["risk"] if w["long"] else p + w["risk"]
-                w.update(state="open", entry_min=pd.Timestamp(trig).floor("min"), last_chk=None, osym=osym, stop=stop, bid_in=bid, ask_in=ask,
+                w.update(state="open", entry_px=p, entry_min=pd.Timestamp(trig).floor("min"), last_chk=None, osym=osym, stop=stop, bid_in=bid, ask_in=ask,
                          mid_in=mid, filled=filled, secs=secs, primary=prim, trig_time=f"{trig:%H:%M:%S}")
+                event("entry" if prim else "entry2",
+                      f"{'SIGNAL' if prim else 'Also triggered'}: {w['sym']} broke {w['lvl']:.2f} -> buy {osym} at {mid:.2f} mid (bid/ask {bid:.2f}/{ask:.2f}). "
+                      f"Stop: 1-min close {'below' if w['long'] else 'above'} {stop:.2f}." + ("" if filled else " Mid limit did not fill in 60 s -> rule skips it."))
                 say(f"{'PRIMARY ' if prim else ''}ENTRY {w['sym']} {'LONG' if w['long'] else 'SHORT'} at {p:.2f} -> {osym} {bid:.2f}/{ask:.2f} "
                     f"mid {mid:.2f} | limit at mid {'FILLED in ' + str(secs) + 's' if filled else 'NOT filled in 60s (rule: no trade)'} | stop {stop:.2f}")
             elif w["state"] == "open":
@@ -262,4 +301,6 @@ def run(now_only: bool = False) -> None:
     for w in watch:
         if w["state"] == "open":
             close(w, "15:55", today)
+    SESSION["ended"] = True
+    event("info", "Session closed (15:55).")
     say(f"END (paper log: {LOG})")
