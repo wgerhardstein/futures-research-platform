@@ -70,7 +70,9 @@ def closes() -> pd.Series:
     b = alpaca.stock_bars(["SPY"], "1Day", start, end, feed="sip")["SPY"]
     s = pd.Series({pd.Timestamp(x["t"]).tz_convert(ET).date(): float(x["c"]) for x in b}).sort_index()
     if now.weekday() < 5 and 9 * 60 + 30 <= now.hour * 60 + now.minute < 16 * 60:
-        s[now.date()] = alpaca.last_trades(["SPY"])["SPY"]
+        t = alpaca.last_trade_time("SPY")
+        if t and pd.Timestamp(t).tz_convert(ET).date() == now.date():  # skip market holidays
+            s[now.date()] = alpaca.last_trades(["SPY"])["SPY"]
     return s
 
 

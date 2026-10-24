@@ -84,6 +84,13 @@ def last_trades(syms: list[str]) -> dict[str, float]:
     return {s: float(t["p"]) for s, t in (r.get("trades") or {}).items()}
 
 
+def last_trade_time(sym: str) -> str | None:
+    """ISO timestamp (UTC) of the latest IEX trade, used to tell a live session from a holiday."""
+    r = get(f"{DATA}/v2/stocks/trades/latest", {"symbols": sym, "feed": "iex"})
+    t = (r.get("trades") or {}).get(sym)
+    return t["t"] if t else None
+
+
 def contracts(underlying: str, typ: str, exp_gte: str, exp_lte: str, k_lo: float, k_hi: float, status: str = "active") -> list[dict]:
     return paged(f"{TRADING}/v2/options/contracts", {"underlying_symbols": underlying, "status": status, "type": typ,
                                                        "expiration_date_gte": exp_gte, "expiration_date_lte": exp_lte,
